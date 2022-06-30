@@ -1,7 +1,11 @@
 {
     "name" : "Reply文艺复兴",
+    "author" : "Dr.Amber",
     "namespace" : "Reply",
     "priority" : 30000,
+    "svn" : 3,
+    "compatible_svn" : 95,
+    "message_mode" : "olivos_string",
     "support" : [
         {
             "sdk" : "all",
