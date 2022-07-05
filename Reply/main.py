@@ -39,7 +39,27 @@ class Event(object):
                       encoding="utf-8") as file:
                 json.dump(data, file, indent=4, ensure_ascii=False)
         try:
-            temp = ReadJson("plugin/data/Reply/ReplyConfig.json")
+            all: dict = ReadJson(Path('CustomReply'))
+        except:
+            data = {
+                're_not_compliant':'错误！关键词不符合正则规则',
+                'entry_set_success':'词条设置成功',
+                'entry_del_fault':'词条删除成功',
+                'entry_not_exist':'错误！该词条不存在！',
+                'mode_change_success':'模式修改成功√',
+                'mode_not_specified':'错误！未指定模式！',
+                'reply_on':'开启成功√',
+                'reply_has_on':'已经在此群开启Reply',
+                'reply_off':'关闭成功√',
+                'reply_has_off':'已经在此群关闭Reply',
+                'reply_set_default':'已修改Reply全局开关'
+            }
+            with open("plugin/data/Reply/CustomReply.json",
+                      "w",
+                      encoding="utf-8") as file:
+                json.dump(data, file, indent=4, ensure_ascii=False)
+        try:
+            all = ReadJson("plugin/data/Reply/ReplyConfig.json")
         except:
             data = {
                 "竖线": "|",
@@ -48,7 +68,8 @@ class Event(object):
                 "client": {
                     "qq": [],
                     "dodo": []
-                }
+                },
+                'defalut':False
             }
             with open("plugin/data/Reply/ReplyConfig.json",
                       "w",
@@ -130,8 +151,9 @@ class Reply:
         self.conf["nick"] = plugin_event.data.sender["nickname"]
         self.conf["now"] = str(time.time())
         self.all: dict = ReadJson(Path('Reply'))
-        self.clientlist: list = self.conf["client"][
-            plugin_event.platform['platform']]
+        self.customreply = ReadJson(Path('CustomReply'))
+        self.default = self.conf.get('defalut')
+        self.clientlist: list = self.conf.get("client",{}).get(plugin_event.platform['platform'],[])
 
     def save(self):
         '''
@@ -148,20 +170,22 @@ class Reply:
         data = {"reply": [], "user": [], "mode": "unity"}
         if res[1] and res[2]:
             if Check_re(res[1]) == False:   #检查关键词是否符合正则
-                return "关键词不符合正则"
+                reply = self.customreply['re_not_compliant']
+                return reply
             self.all[res[1]] = self.all.get(res[1], data)
             if '|' in res[2]:
                 self.all[res[1]]['reply'] = res[2].split('|')
             else:
                 self.all[res[1]]['reply'] = [res[2]]
             self.save()
-            return '设定词条成功'
+            reply = self.customreply['entry_set_success']
         elif res[1] in self.all.keys() and res[2] == '':
             del self.all[res[1]]
             self.save()
-            return '删除词条成功'
+            reply = self.customreply['entry_del_fault']
         elif res[1] not in self.all.keys():
-            return '不存在该词条'
+            reply = self.customreply['entry_not_exist']
+        return reply
 
     def mode(self, res):
         '''
@@ -179,11 +203,13 @@ class Reply:
                 elif res[2] == 'private' or res[2] == '0':
                     self.all[res[1]]['mode'] = 'private'
                     self.save()
-                return "修改成功"
+                reply = self.customreply['mode_change_success']
             else:
-                return "未指定模式"
+                reply = self.customreply['mode_not_specified']
+            return reply
         else:
-            return "不存在该词条"
+            reply = self.customreply['entry_not_exist']
+            return reply
 
     #开关方法
     def client(self, res, plugin_event): 
@@ -195,24 +221,60 @@ class Reply:
         '''
         p = Path('ReplyConfig')
         temp = ReadJson(p)
-        if res[1] == 'on':
-            if self.group not in self.clientlist:
-                self.clientlist.append(self.group)
-                temp["client"][
-                    plugin_event.platform['platform']] = self.clientlist
-                WriteJson(p, temp)
-                return "开启reply成功"
-            else:
-                return "reply已经开启"
-        elif res[1] == "off":
-            if self.group in self.clientlist:
-                self.clientlist.remove(self.group)
-                temp["client"][
-                    plugin_event.platform['platform']] = self.clientlist
-                WriteJson(p, temp)
-                return "关闭reply成功"
-            else:
-                return "reply已经关闭"
+        group = None
+        if len(res) == 3:
+            group = res[2]
+        res = res[1]
+        if self.group:
+            if res == 'on':
+                if self.group not in self.clientlist:
+                    self.clientlist.append(self.group)
+                    temp["client"][
+                        plugin_event.platform['platform']] = self.clientlist
+                    WriteJson(p, temp)
+                    reply = self.customreply['reply_on']
+                else:
+                    reply = self.customreply['reply_has_on']
+            elif res == "off":
+                if self.group in self.clientlist:
+                    self.clientlist.remove(self.group)
+                    temp["client"][
+                        plugin_event.platform['platform']] = self.clientlist
+                    WriteJson(p, temp)
+                    reply = self.customreply['reply_off']
+                else:
+                    reply = self.customreply['reply_has_off']
+        else:
+            if group:
+                if group == 'all':
+                    if res == 'on':
+                        res = True
+                    elif res == 'off':
+                        res = False
+                    else:
+                        return
+                    temp['default'] = res
+                    reply = self.customreply['reply_set_default']
+                else:
+                    if res == 'on':
+                        if self.group not in self.clientlist:
+                            self.clientlist.append(self.group)
+                            temp["client"][
+                                plugin_event.platform['platform']] = self.clientlist
+                            WriteJson(p, temp)
+                            reply = self.customreply['reply_on']
+                        else:
+                            reply = self.customreply['reply_has_on']
+                    elif res == "off":
+                        if self.group in self.clientlist:
+                            self.clientlist.remove(self.group)
+                            temp["client"][
+                                plugin_event.platform['platform']] = self.clientlist
+                            WriteJson(p, temp)
+                            reply = self.customreply['reply_off']
+                        else:
+                            reply = self.customreply['reply_has_off']
+        return reply
 
     def reply(self, string: str):
         '''
@@ -283,7 +345,7 @@ def Check_admin(plugin_event):
 
 def ReplyFunction(plugin_event, Proc):
     selfid = str(plugin_event.bot_info.id)
-    temp = re.compile(r'\s*\*reply(level|leveldel|mode)?\s+(\S+)\s*(\S*)') # 正则匹配reply指令
+    temp = re.compile(r'\s*\*reply(mode)?\s+(\S+)\s*(\S*)') # 正则匹配reply指令
     string:str = plugin_event.data.message  #接收到的消息内容
     reply = Reply(plugin_event)
     if string.startswith(OlivOS.messageAPI.PARA.at(plugin_event.base_info['self_id']).CQ()):
@@ -320,5 +382,5 @@ def ReplyFunction(plugin_event, Proc):
             group = str(plugin_event.data.host_id)
         if 'group_id' in plugin_event.data.__dict__:
             group = str(plugin_event.data.group_id)
-        if res and (group in reply.clientlist or group == None):
+        if res and (group in reply.clientlist or group == None or reply.default):
             plugin_event.reply(res)
