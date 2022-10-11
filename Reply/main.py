@@ -274,7 +274,7 @@ class Reply:
                             reply = self.customreply['reply_off']
                         else:
                             reply = self.customreply['reply_has_off']
-            return reply
+        return reply
 
     def reply(self, string: str):
         '''
